@@ -71,12 +71,45 @@ IMAGE_TRANSFORMS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-IMAGE_TRANSFORMS_AUGMENTATIONS = transforms.Compose([
+IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
     transforms.Resize(ModelArchitecture.IMAGE_SIZE),
     transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
     AddRectangles(),
     AddBalls(),
     transforms.RandomRotation(degrees=180),
+    transforms.ToTensor(),
+])
+
+class WeightedRandomAugmentations:
+    def __init__(self, transforms, count_weights):
+        """
+        count_weights: list where index 0 = P(apply 1), index 1 = P(apply 2), etc.
+        e.g. [0.75, 0.15, 0.1] → 75% chance of 1, 15% of 2, 10% of 3
+        """
+        self.transforms = transforms
+        self.counts = range(1, len(count_weights) + 1)
+        self.weights = count_weights
+
+    def __call__(self, img):
+        n = random.choices(self.counts, weights=self.weights, k=1)[0]
+        chosen = random.sample(self.transforms, k=min(n, len(self.transforms)))
+        for t in chosen:
+            img = t(img)
+        return img
+
+IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+
+    WeightedRandomAugmentations(
+        transforms=[
+            AddRectangles(),
+            AddBalls(),
+            transforms.RandomRotation(degrees=180),
+        ],
+        count_weights=[0.75, 0.15, 0.1],  # 75% → 1, 15% → 2, 10% → 3
+    ),
+
     transforms.ToTensor(),
 ])
 
@@ -153,8 +186,12 @@ def main():
     # initialize seed
     torch.manual_seed(SEED)
     
-    train_dataset = ImageNetSubset(DATA_ROOT, r"train_set\train", transform=IMAGE_TRANSFORMS_AUGMENTATIONS)
-    validation_dataset = ImageNetSubset(DATA_ROOT, r"train_set\validation", transform=IMAGE_TRANSFORMS_AUGMENTATIONS)
+    train_dataset = ImageNetSubset(DATA_ROOT,
+                                   split=r"train_set\train",
+                                   transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
+    validation_dataset = ImageNetSubset(DATA_ROOT,
+                                        split=r"train_set\validation",
+                                        transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
