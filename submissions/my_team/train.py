@@ -83,8 +83,8 @@ IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
 class WeightedRandomAugmentations:
     def __init__(self, transforms, count_weights):
         """
-        count_weights: list where index 0 = P(apply 1), index 1 = P(apply 2), etc.
-        e.g. [0.75, 0.15, 0.1] → 75% chance of 1, 15% of 2, 10% of 3
+        count_weights: list where index 0 = P(apply 0), index 1 = P(apply 1), index 2 = P(apply 2), etc.
+        e.g. [0.2, 0.55, 0.15, 0.1] → 20% chance of no augmentation, 55% chance of 1, 15% of 2, 10% of 3
         """
         self.transforms = transforms
         self.counts = range(1, len(count_weights) + 1)
