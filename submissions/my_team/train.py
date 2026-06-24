@@ -22,12 +22,18 @@ OUTPUT = Path("weights.joblib")
 OUTPUT_LOG = "logs/training_{}.log"
 
 SEED = 67
-TRAIN_RATIO = 0.1
+TRAIN_RATIO = 0.7
 TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
 BATCH_SIZE = 32
 EPOCHS = 2
+
+IMAGE_TRANSFORMS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    transforms.ToTensor(),
+])
 
 def calculate_accuracy(model, data_loader):
     """
@@ -98,25 +104,15 @@ def main():
     """
     model = ModelArchitecture()
 
-
     labels_list = json.load(open(LABELS_LIST)) # str -> str
     labels_list = {int(k): v for k, v in labels_list.items()} # int -> str
 
     # initialize seed
     torch.manual_seed(SEED)
 
-    dataset = ImageNetSubset(DATA_ROOT, r"train_set\\train", transform=transforms.Compose([
-        transforms.Resize(model.IMAGE_SIZE),
-        transforms.CenterCrop(model.IMAGE_SIZE),
-        transforms.ToTensor(),
-    ]))
-
-    # split dataset into train and validation sets
-    train_size = int(TRAIN_RATIO * len(dataset))
-    test_size = int(TEST_RATIO * len(dataset))
-    final_test_size = len(dataset) - train_size - test_size
-    train_dataset, validation_dataset, final_test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size, final_test_size])
     
+    train_dataset = ImageNetSubset(DATA_ROOT, r"train_set\train", transform=IMAGE_TRANSFORMS)
+    validation_dataset = ImageNetSubset(DATA_ROOT, r"train_set\validation", transform=IMAGE_TRANSFORMS)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
