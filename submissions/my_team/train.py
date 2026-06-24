@@ -54,7 +54,8 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, repo
         running_loss += loss.item()
         if batch_index % report_interval == report_interval - 1:  # Log every `report_interval` batches
             last_loss = running_loss / report_interval
-            print(f"Epoch [{epoch_index + 1}], Batch [{batch_index + 1}], Loss: {last_loss:.4f}")
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            print(f"{timestamp}: Epoch [{epoch_index + 1}], Batch [{batch_index + 1}], Loss: {last_loss:.4f}")
             tb_writer.add_scalar('training loss', last_loss, epoch_index * len(train_loader) + batch_index)
             running_loss = 0.0
     
