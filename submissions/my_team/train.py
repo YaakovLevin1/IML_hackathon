@@ -40,8 +40,6 @@ IMAGE_TRANSFORMS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-<<<<<<< HEAD
-=======
 IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
     transforms.Resize(ModelArchitecture.IMAGE_SIZE),
     transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
@@ -84,7 +82,6 @@ IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
->>>>>>> 82b68be7c625a5b6ae7475a2bf5eca41d6b20966
 def calculate_accuracy(model, data_loader):
     """
     Calculate the accuracy of the model on the provided data loader.
