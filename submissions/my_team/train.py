@@ -7,6 +7,7 @@ import joblib
 from nbformat import write
 import torch
 import torch.nn as nn
+import random
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -29,9 +30,53 @@ FINAL_TEST_RATIO = 0.15
 BATCH_SIZE = 32
 EPOCHS = 2
 
+class AddRectangles:
+    def __init__(self, num_rectangles=3, max_size=50, color=(0,0,0)):
+        self.num_rectangles = num_rectangles
+        self.max_size = max_size
+        self.color = color
+
+    def __call__(self, img):
+        import PIL.ImageDraw as ImageDraw
+        draw = ImageDraw.Draw(img)
+        w, h = img.size
+        for _ in range(self.num_rectangles):
+            rw = random.randint(10, self.max_size)
+            rh = random.randint(10, self.max_size)
+            x = random.randint(0, w - rw)
+            y = random.randint(0, h - rh)
+            draw.rectangle([x, y, x + rw, y + rh], fill=self.color)
+        return img
+
+class AddBalls:
+    def __init__(self, num_balls=3, max_radius=20, color=(0,0,0)):
+        self.num_balls = num_balls
+        self.max_radius = max_radius
+        self.color = color
+
+    def __call__(self, img):
+        import PIL.ImageDraw as ImageDraw
+        draw = ImageDraw.Draw(img)
+        w, h = img.size
+        for _ in range(self.num_balls):
+            r = random.randint(5, self.max_radius)
+            x = random.randint(r, w - r)
+            y = random.randint(r, h - r)
+            draw.ellipse([x - r, y - r, x + r, y + r], fill=self.color)
+        return img
+
 IMAGE_TRANSFORMS = transforms.Compose([
     transforms.Resize(ModelArchitecture.IMAGE_SIZE),
     transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    transforms.ToTensor(),
+])
+
+IMAGE_TRANSFORMS_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    AddRectangles(),
+    AddBalls(),
+    transforms.RandomRotation(degrees=180),
     transforms.ToTensor(),
 ])
 
@@ -94,8 +139,6 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_
 
     return last_loss
 
-
-
 def main():
     """
     Full training pipeline.
@@ -109,7 +152,6 @@ def main():
 
     # initialize seed
     torch.manual_seed(SEED)
-
     
     train_dataset = ImageNetSubset(DATA_ROOT, r"train_set\train", transform=IMAGE_TRANSFORMS)
     validation_dataset = ImageNetSubset(DATA_ROOT, r"train_set\validation", transform=IMAGE_TRANSFORMS)
@@ -135,7 +177,6 @@ def main():
     
     joblib.dump(model.state_dict(), "weights.joblib")
     print("Saved trained weights.joblib")
-
 
 if __name__ == "__main__":
     main()
