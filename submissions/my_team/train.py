@@ -26,7 +26,6 @@ TRAIN_RATIO = 0.7
 TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
-IMAGE_SIZE = 243
 BATCH_SIZE = 32
 EPOCHS = 10
 
@@ -69,6 +68,8 @@ def main():
 
     This script must create weights.joblib.
     """
+    model = ModelArchitecture()
+
 
     labels_list = json.load(open(LABELS_LIST)) # str -> str
     labels_list = {int(k): v for k, v in labels_list.items()} # int -> str
@@ -77,8 +78,8 @@ def main():
     torch.manual_seed(SEED)
 
     dataset = ImageNetSubset(DATA_ROOT, r"train_set\\train", transform=transforms.Compose([
-        transforms.Resize(IMAGE_SIZE),
-        transforms.CenterCrop(IMAGE_SIZE),
+        transforms.Resize(model.IMAGE_SIZE),
+        transforms.CenterCrop(model.IMAGE_SIZE),
         transforms.ToTensor(),
     ]))
 
@@ -92,7 +93,6 @@ def main():
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
 
-    model = ModelArchitecture()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     # train the model
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)

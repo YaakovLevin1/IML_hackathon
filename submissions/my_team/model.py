@@ -12,6 +12,7 @@ class ModelArchitecture(nn.Module):
         input:  torch.Tensor of shape [batch_size, 3, height, width]
         output: torch.Tensor of shape [batch_size, 20]
     """
+    IMAGE_SIZE = 243
 
     def __init__(self, num_classes: int = 20):
         super().__init__()
