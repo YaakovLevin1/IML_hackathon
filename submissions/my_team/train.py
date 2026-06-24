@@ -7,7 +7,6 @@ import joblib
 from nbformat import write
 import torch
 import torch.nn as nn
-import random
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -15,6 +14,11 @@ from torchvision import transforms
 
 from base_model import ImageNetSubset
 from submissions.my_team.model import ModelArchitecture
+
+if torch.cuda.is_available():
+    torch.set_default_device('cuda')
+elif torch.backends.mps.is_available():
+    torch.set_default_device("mps")
 
 
 DATA_ROOT = Path("dataset")
@@ -31,6 +35,53 @@ BATCH_SIZE = 32
 EPOCHS = 2
 
 
+IMAGE_TRANSFORMS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    transforms.ToTensor(),
+])
+
+IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    AddRectangles(),
+    AddBalls(),
+    transforms.RandomRotation(degrees=180),
+    transforms.ToTensor(),
+])
+
+class WeightedRandomAugmentations:
+    def __init__(self, transforms, count_weights):
+        """
+        count_weights: list where index 0 = P(apply 0), index 1 = P(apply 1), index 2 = P(apply 2), etc.
+        e.g. [0.2, 0.55, 0.15, 0.1] → 20% chance of no augmentation, 55% chance of 1, 15% of 2, 10% of 3
+        """
+        self.transforms = transforms
+        self.counts = range(1, len(count_weights) + 1)
+        self.weights = count_weights
+
+    def __call__(self, img):
+        n = random.choices(self.counts, weights=self.weights, k=1)[0]
+        chosen = random.sample(self.transforms, k=min(n, len(self.transforms)))
+        for t in chosen:
+            img = t(img)
+        return img
+
+IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+
+    WeightedRandomAugmentations(
+        transforms=[
+            AddRectangles(),
+            AddBalls(),
+            transforms.RandomRotation(degrees=180),
+        ],
+        count_weights=[0.2, 0.55, 0.15, 0.1],  # 20% → 0, 55% → 1, 15% → 2, 10% → 3
+    ),
+
+    transforms.ToTensor(),
+])
 
 def calculate_accuracy(model, data_loader):
     """
