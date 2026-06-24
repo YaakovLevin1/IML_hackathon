@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from pathlib import Path
 import json
 import re
@@ -13,11 +13,11 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 
 from base_model import ImageNetSubset
-from model import ModelArchitecture
+from submissions.my_team.model import ModelArchitecture
 
 
-DATA_ROOT = Path("../../dataset")
-LABELS_LIST = Path("../../dataset/labels.json")
+DATA_ROOT = Path("dataset")
+LABELS_LIST = Path("dataset/labels.json")
 OUTPUT = Path("weights.joblib")
 OUTPUT_LOG = "logs/training_{}.log"
 
@@ -30,7 +30,7 @@ IMAGE_SIZE = 243
 BATCH_SIZE = 32
 EPOCHS = 10
 
-def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, report_interval=100):
+def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, report_interval=10):
     """
     Train the model for one epoch.
 
@@ -75,7 +75,7 @@ def main():
     # initialize seed
     torch.manual_seed(SEED)
 
-    dataset = ImageNetSubset(DATA_ROOT, transform=transforms.Compose([
+    dataset = ImageNetSubset(DATA_ROOT, r"train_set\\train", transform=transforms.Compose([
         transforms.Resize(IMAGE_SIZE),
         transforms.CenterCrop(IMAGE_SIZE),
         transforms.ToTensor(),
@@ -116,7 +116,7 @@ def main():
     # write to file
     writer.flush()
     writer.close()
-
+    
     joblib.dump(model.state_dict(), "weights.joblib")
     print("Saved trained weights.joblib")
 
