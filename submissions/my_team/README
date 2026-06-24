@@ -1,0 +1,8 @@
+Jacob.Block,yaakovlevin,Itay.Birenboim,ohad.alon
+216284554,328152541,330804477,331017319
+
+Basically AlexNET but with fewer layers and smaller. 
+Starts with a slightly larger resolution, as a result of the hyperparameters we chose,
+since we didn't want to round down and waste data. It gets around 60% accuracy which isn't too bad.
+
+So far we haven't tried manipulations, this is just a baseline - minimum viable product.
