@@ -107,7 +107,7 @@ IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
             AddBalls(),
             transforms.RandomRotation(degrees=180),
         ],
-        count_weights=[0.75, 0.15, 0.1],  # 75% → 1, 15% → 2, 10% → 3
+        count_weights=[0.2, 0.55, 0.15, 0.1],  # 75% → 1, 15% → 2, 10% → 3
     ),
 
     transforms.ToTensor(),
