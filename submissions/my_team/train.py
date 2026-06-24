@@ -240,10 +240,10 @@ def main():
     torch.manual_seed(SEED)
     
     train_dataset = ImageNetSubset(DATA_ROOT,
-                                   split=r"train_set\train",
+                                   split="train_set/train",
                                    transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
     validation_dataset = ImageNetSubset(DATA_ROOT,
-                                        split=r"train_set\validation",
+                                        split="train_set/validation",
                                         transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
