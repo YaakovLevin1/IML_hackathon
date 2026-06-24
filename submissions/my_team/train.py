@@ -40,6 +40,51 @@ IMAGE_TRANSFORMS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
+<<<<<<< HEAD
+=======
+IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    AddRectangles(),
+    AddBalls(),
+    transforms.RandomRotation(degrees=180),
+    transforms.ToTensor(),
+])
+
+class WeightedRandomAugmentations:
+    def __init__(self, transforms, count_weights):
+        """
+        count_weights: list where index 0 = P(apply 0), index 1 = P(apply 1), index 2 = P(apply 2), etc.
+        e.g. [0.2, 0.55, 0.15, 0.1] → 20% chance of no augmentation, 55% chance of 1, 15% of 2, 10% of 3
+        """
+        self.transforms = transforms
+        self.counts = range(1, len(count_weights) + 1)
+        self.weights = count_weights
+
+    def __call__(self, img):
+        n = random.choices(self.counts, weights=self.weights, k=1)[0]
+        chosen = random.sample(self.transforms, k=min(n, len(self.transforms)))
+        for t in chosen:
+            img = t(img)
+        return img
+
+IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+
+    WeightedRandomAugmentations(
+        transforms=[
+            AddRectangles(),
+            AddBalls(),
+            transforms.RandomRotation(degrees=180),
+        ],
+        count_weights=[0.2, 0.55, 0.15, 0.1],  # 20% → 0, 55% → 1, 15% → 2, 10% → 3
+    ),
+
+    transforms.ToTensor(),
+])
+
+>>>>>>> 82b68be7c625a5b6ae7475a2bf5eca41d6b20966
 def calculate_accuracy(model, data_loader):
     """
     Calculate the accuracy of the model on the provided data loader.
