@@ -153,8 +153,8 @@ def main():
     # initialize seed
     torch.manual_seed(SEED)
     
-    train_dataset = ImageNetSubset(DATA_ROOT, r"train_set\train", transform=IMAGE_TRANSFORMS)
-    validation_dataset = ImageNetSubset(DATA_ROOT, r"train_set\validation", transform=IMAGE_TRANSFORMS)
+    train_dataset = ImageNetSubset(DATA_ROOT, r"train_set\train", transform=IMAGE_TRANSFORMS_AUGMENTATIONS)
+    validation_dataset = ImageNetSubset(DATA_ROOT, r"train_set\validation", transform=IMAGE_TRANSFORMS_AUGMENTATIONS)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
