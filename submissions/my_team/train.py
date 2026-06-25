@@ -27,9 +27,6 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     random.seed(seed)
 
-# Call the function with your desired seed
-set_seed(42)
-
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
 OUTPUT = Path("weights.joblib")
