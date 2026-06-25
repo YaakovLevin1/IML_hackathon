@@ -169,7 +169,7 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_
     
     accuracy = calculate_accuracy(model, val_loader, device)
     print(f"Epoch [{epoch_index + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
-    tb_writer.add_scalar('validation accuracy', accuracy, epoch_index * len(train_loader)) 
+    tb_writer.add_scalar('validation accuracy', accuracy, epoch_index) 
 
     return last_loss
 
