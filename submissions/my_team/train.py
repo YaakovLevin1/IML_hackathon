@@ -14,18 +14,13 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
+from torchvision.utils import save_image
 
 from base_model import ImageNetSubset
 from submissions.my_team.model import ModelArchitecture
 
 # Define device globally or in main() - standard practice is to resolve it dynamically
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-
-def set_seed(seed):
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    random.seed(seed)
 
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
@@ -39,6 +34,29 @@ TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
 BATCH_SIZE = 32
+
+
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+
+def save_preview_images(data_loader, num_images=10, output_path="preview_augmentations.png"):
+    """
+    Grabs a batch of images from the dataloader and saves them to a file 
+    so you can visually inspect the augmentations.
+    """
+    # Grab the first batch of images and labels
+    images, labels = next(iter(data_loader))
+    
+    # Ensure we don't try to grab more images than exist in a single batch
+    num_images = min(num_images, images.size(0))
+    images_to_save = images[:num_images]
+    
+    # Save the images as a grid (nrow=5 means 5 images per row)
+    save_image(images_to_save, output_path, nrow=5)
+    print(f"Saved a preview of {num_images} augmented images to {output_path}")
 
 class AddRectangles:
     def __init__(self, num_rectangles=3, max_size=50, color=(0,0,0)):
@@ -142,7 +160,7 @@ def calculate_accuracy(model, data_loader, device):
     accuracy = 100 * correct / total if total > 0 else 0
     return accuracy
 
-def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_loader, device, report_interval=10):
+def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, device, report_interval=10):
     """
     Train the model for one epoch.
     """
@@ -166,10 +184,6 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_
             print(f"{timestamp}: Epoch [{epoch_index + 1}], Batch [{batch_index + 1}], Loss: {last_loss:.4f}")
             tb_writer.add_scalar('training loss', last_loss, epoch_index * len(train_loader) + batch_index)
             running_loss = 0.0
-    
-    accuracy = calculate_accuracy(model, val_loader, device)
-    print(f"Epoch [{epoch_index + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
-    tb_writer.add_scalar('validation accuracy', accuracy, epoch_index) 
 
     return last_loss
 
@@ -215,18 +229,27 @@ def main(args):
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
+
     # FIXED: Generator device is now dynamically assigned based on the active hardware
     gen = torch.Generator(device='cpu')
     
-    # train the model
+    # load the data
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, generator=gen)
     val_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False, generator=gen)
     
+    # previw a few images
+    save_preview_images(train_loader, num_images=10, output_path="preview_augmentations.png")
+
     # --- TRAINING LOOP WITH CHECKPOINTING ---
     for epoch in range(args.epochs):
         train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader, device)
         
+        accuracy = calculate_accuracy(model, val_loader, device)
+        print(f"Epoch [{epoch + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
+        writer.add_scalar('validation accuracy', accuracy, epoch)
+        scheduler.step(accuracy) # This will drop the LR if accuracy stops improving
+
         # Save intermediate checkpoint
         checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
         torch.save(model.state_dict(), checkpoint_path)
