@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torchvision.utils import save_image
+from torch.amp import autocast
 
 from base_model import ImageNetSubset
 from submissions.my_team.model import ModelArchitecture
@@ -195,8 +196,11 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, scheduler, train_l
         images, labels = images.to(device), labels.to(device)
         
         optimizer.zero_grad()
-        outputs = model(images)
-        loss = nn.CrossEntropyLoss()(outputs, labels)
+        
+        with autocast(device):
+            outputs = model(images)
+            loss = nn.CrossEntropyLoss()(outputs, labels)
+        
         loss.backward()
         optimizer.step()
 
