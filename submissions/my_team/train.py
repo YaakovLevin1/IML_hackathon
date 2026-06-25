@@ -16,16 +16,17 @@ from torchvision import transforms
 from base_model import ImageNetSubset
 from submissions.my_team.model import ModelArchitecture
 
-if torch.cuda.is_available():
-    torch.set_default_device('cuda')
-elif torch.backends.mps.is_available():
-    torch.set_default_device("mps")
+# Define device globally or in main() - standard practice is to resolve it dynamically
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
 def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
     random.seed(seed)
+
+# Call the function with your desired seed
+# set_seed(42)
 
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
@@ -75,21 +76,6 @@ class AddBalls:
             draw.ellipse([x - r, y - r, x + r, y + r], fill=self.color)
         return img
 
-IMAGE_TRANSFORMS = transforms.Compose([
-    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
-    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
-    transforms.ToTensor(),
-])
-
-IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
-    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
-    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
-    AddRectangles(),
-    AddBalls(),
-    transforms.RandomRotation(degrees=180),
-    transforms.ToTensor(),
-])
-
 class WeightedRandomAugmentations:
     def __init__(self, transforms, count_weights):
         """
@@ -107,22 +93,6 @@ class WeightedRandomAugmentations:
             img = t(img)
         return img
 
-IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
-    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
-    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
-
-    WeightedRandomAugmentations(
-        transforms=[
-            AddRectangles(),
-            AddBalls(),
-            transforms.RandomRotation(degrees=180),
-        ],
-        count_weights=[0.2, 0.55, 0.15, 0.1],  # 20% → 0, 55% → 1, 15% → 2, 10% → 3
-    ),
-
-    transforms.ToTensor(),
-])
-
 IMAGE_TRANSFORMS = transforms.Compose([
     transforms.Resize(ModelArchitecture.IMAGE_SIZE),
     transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
@@ -138,23 +108,6 @@ IMAGE_TRANSFORMS_ALL_AUGMENTATIONS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-class WeightedRandomAugmentations:
-    def __init__(self, transforms, count_weights):
-        """
-        count_weights: list where index 0 = P(apply 0), index 1 = P(apply 1), index 2 = P(apply 2), etc.
-        e.g. [0.2, 0.55, 0.15, 0.1] → 20% chance of no augmentation, 55% chance of 1, 15% of 2, 10% of 3
-        """
-        self.transforms = transforms
-        self.counts = range(1, len(count_weights) + 1)
-        self.weights = count_weights
-
-    def __call__(self, img):
-        n = random.choices(self.counts, weights=self.weights, k=1)[0]
-        chosen = random.sample(self.transforms, k=min(n, len(self.transforms)))
-        for t in chosen:
-            img = t(img)
-        return img
-
 IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
     transforms.Resize(ModelArchitecture.IMAGE_SIZE),
     transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
@@ -171,22 +124,18 @@ IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
-def calculate_accuracy(model, data_loader):
+def calculate_accuracy(model, data_loader, device):
     """
     Calculate the accuracy of the model on the provided data loader.
-
-    Args:
-        model: The trained model.
-        data_loader: DataLoader for the dataset to evaluate.
-
-    Returns:
-        Accuracy as a percentage.
     """
     model.eval()
     correct = 0
     total = 0
     with torch.no_grad():
         for images, labels in data_loader:
+            # MOVED TO DEVICE
+            images, labels = images.to(device), labels.to(device)
+            
             outputs = model(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -194,22 +143,17 @@ def calculate_accuracy(model, data_loader):
     accuracy = 100 * correct / total if total > 0 else 0
     return accuracy
 
-def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_loader, report_interval=10):
+def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_loader, device, report_interval=10):
     """
     Train the model for one epoch.
-
-    Args:
-        epoch_index: Index of the current epoch.
-        tb_writer: TensorBoard writer for logging.
-        model: The model to train.
-        optimizer: The optimizer for updating model parameters.
-        train_loader: DataLoader for the training dataset.
-        val_loader: DataLoader for the validation dataset. only used for calculating accuracy after the epoch.
     """
     model.train()
     running_loss = 0.0
     last_loss = 0.0
     for batch_index, (images, labels) in enumerate(train_loader):
+        # MOVED TO DEVICE
+        images, labels = images.to(device), labels.to(device)
+        
         optimizer.zero_grad()
         outputs = model(images)
         loss = nn.CrossEntropyLoss()(outputs, labels)
@@ -224,19 +168,19 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_
             tb_writer.add_scalar('training loss', last_loss, epoch_index * len(train_loader) + batch_index)
             running_loss = 0.0
     
-    accuracy = calculate_accuracy(model, val_loader)
+    accuracy = calculate_accuracy(model, val_loader, device)
     print(f"Epoch [{epoch_index + 1}] completed. Training Accuracy: {accuracy:.2f}%")
-    tb_writer.add_scalar('training accuracy', accuracy, epoch_index * len(train_loader)) # multiplied so the x-axis is consistent with the loss graph
+    tb_writer.add_scalar('training accuracy', accuracy, epoch_index * len(train_loader)) 
 
     return last_loss
 
 def main():
     """
     Full training pipeline.
-
     This script must create weights.joblib.
     """
-    model = ModelArchitecture()
+    print(f"Using device: {device}")
+    model = ModelArchitecture().to(device)
 
     labels_list = json.load(open(LABELS_LIST)) # str -> str
     labels_list = {int(k): v for k, v in labels_list.items()} # int -> str
@@ -255,15 +199,20 @@ def main():
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    
+    # FIXED: Generator device is now dynamically assigned based on the active hardware
+    gen = torch.Generator(device=device)
+    
     # train the model
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, generator=gen)
+    val_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False, generator=gen)
+    
     # Add training loop here
     for epoch in range(EPOCHS):
-        last_loss = train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader)
+        last_loss = train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader, device)
 
     # evaluate the model on the test set
-    accuracy = calculate_accuracy(model, val_loader)
+    accuracy = calculate_accuracy(model, val_loader, device)
     print(f"Validation Accuracy: {accuracy:.2f}%")
 
     # write to file
