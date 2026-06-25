@@ -33,7 +33,7 @@ TRAIN_RATIO = 0.7
 TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
-BATCH_SIZE = 32
+BATCH_SIZE = 512
 
 
 def set_seed(seed):
