@@ -248,7 +248,7 @@ def main(args):
 
     # --- TRAINING LOOP WITH CHECKPOINTING ---
     for epoch in range(args.epochs):
-        train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader, device)
+        train_one_epoch(epoch, writer, model, optimizer, train_loader, device)
         
         accuracy = calculate_accuracy(model, val_loader, device)
         print(f"Epoch [{epoch + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
