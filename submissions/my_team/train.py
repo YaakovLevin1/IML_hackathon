@@ -183,7 +183,7 @@ def calculate_accuracy(model, data_loader, device):
     accuracy = 100 * correct / total if total > 0 else 0
     return accuracy
 
-def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, device, report_interval=5):
+def train_one_epoch(epoch_index, tb_writer, model, optimizer, scheduler, train_loader, device, report_interval=5):
     """
     Train the model for one epoch.
     """
@@ -199,6 +199,8 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, devi
         loss = nn.CrossEntropyLoss()(outputs, labels)
         loss.backward()
         optimizer.step()
+
+        scheduler.step()
 
         running_loss += loss.item()
         if batch_index % report_interval == report_interval - 1:  # Log every `report_interval` batches
@@ -216,6 +218,7 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, devi
                 # --- ADD THIS: Log to TensorBoard ---
                 tb_writer.add_scalar('Hardware/CPU_Utilization', cpu_util, epoch_index * len(train_loader) + batch_index)
                 tb_writer.add_scalar('Hardware/GPU_Utilization', gpu_util, epoch_index * len(train_loader) + batch_index)
+
 
     return last_loss
 
@@ -266,7 +269,14 @@ def main(args):
     writer = SummaryWriter(OUTPUT_LOG) #.format(timestamp))
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4) # weight_decay is a type of regularization
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=3e-3, # The peak learning rate
+        steps_per_epoch=len(train_loader),
+        epochs=args.epochs, # Use your command line argument here!
+        pct_start=0.3
+    )
 
     # FIXED: Generator device is now dynamically assigned based on the active hardware
     gen = torch.Generator(device='cpu')
@@ -300,24 +310,24 @@ def main(args):
 
     # --- TRAINING LOOP WITH CHECKPOINTING ---
     for epoch in range(args.epochs):
-        train_one_epoch(epoch, writer, model, optimizer, train_loader, device)
+        train_one_epoch(epoch, writer, model, optimizer, scheduler, train_loader, device)
         
         accuracy = calculate_accuracy(model, val_loader, device)
         print(f"Epoch [{epoch + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
         writer.add_scalar('validation accuracy', accuracy, epoch)
         
         # --- Check LR and Step Scheduler ---
-        current_lr = optimizer.param_groups[0]['lr']
-        scheduler.step(accuracy) # This will drop the LR if accuracy stops improving
-        new_lr = optimizer.param_groups[0]['lr']
+        # current_lr = optimizer.param_groups[0]['lr']
+        # scheduler.step(accuracy) # This will drop the LR if accuracy stops improving
+        # new_lr = optimizer.param_groups[0]['lr']
         
-        if current_lr != new_lr:
-            print(f"Learning rate reduced from {current_lr} to {new_lr}")
+        # if current_lr != new_lr:
+        #     print(f"Learning rate reduced from {current_lr} to {new_lr}")
 
-        # Save intermediate checkpoint
-        checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
-        torch.save(model.state_dict(), checkpoint_path)
-        print(f"Saved epoch {epoch + 1} checkpoint to {checkpoint_path}")
+        # # Save intermediate checkpoint
+        # checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
+        # torch.save(model.state_dict(), checkpoint_path)
+        # print(f"Saved epoch {epoch + 1} checkpoint to {checkpoint_path}")
 
     # evaluate the model on the test set
     accuracy = calculate_accuracy(model, val_loader, device)
