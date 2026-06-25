@@ -33,7 +33,7 @@ TRAIN_RATIO = 0.7
 TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
-BATCH_SIZE = 512
+BATCH_SIZE = 32
 
 
 def set_seed(seed):
@@ -192,6 +192,10 @@ def main(args):
     Full training pipeline.
     This script must create weights.joblib.
     """
+    global BATCH_SIZE
+
+    BATCH_SIZE = args["batch-size"]
+
     print(f"Using device: {device}")
     model = ModelArchitecture().to(device)
 
@@ -271,6 +275,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model on ImageNet subset")
     parser.add_argument('--epochs', type=int, default=2, help='Number of epochs to train the model')
+    parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
     parser.add_argument('--resume', type=str, default=None, help='Path to a checkpoint file to resume training from')
     
     args = parser.parse_args()
