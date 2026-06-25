@@ -21,6 +21,15 @@ if torch.cuda.is_available():
 elif torch.backends.mps.is_available():
     torch.set_default_device("mps")
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+# Call the function with your desired seed
+set_seed(42)
 
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
@@ -237,8 +246,8 @@ def main():
     labels_list = {int(k): v for k, v in labels_list.items()} # int -> str
 
     # initialize seed
-    torch.manual_seed(SEED)
-    
+    set_seed(SEED)
+
     train_dataset = ImageNetSubset(DATA_ROOT,
                                    split="train_set/train",
                                    transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
