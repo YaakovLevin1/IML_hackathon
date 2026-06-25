@@ -201,7 +201,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     
     # FIXED: Generator device is now dynamically assigned based on the active hardware
-    gen = torch.Generator(device=device)
+    gen = torch.Generator(device='cpu')
     
     # train the model
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, generator=gen)
