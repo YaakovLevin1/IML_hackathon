@@ -234,7 +234,7 @@ def main(args):
     writer = SummaryWriter(OUTPUT_LOG) #.format(timestamp))
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4) # weight_decay is a type of regularization
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
 
     # FIXED: Generator device is now dynamically assigned based on the active hardware
     gen = torch.Generator(device='cpu')
