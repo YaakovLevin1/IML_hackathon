@@ -25,7 +25,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.ba
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
 OUTPUT = Path("weights.joblib")
-OUTPUT_LOG = "logs/training_{}.log"
+OUTPUT_LOG = "logs/training" #_{}.log"
 CHECKPOINT_DIR = Path("checkpoints")
 
 SEED = 67
@@ -226,7 +226,7 @@ def main(args):
     os.makedirs("logs", exist_ok=True)
     CHECKPOINT_DIR.mkdir(exist_ok=True)
     
-    writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
+    writer = SummaryWriter(OUTPUT_LOG) #.format(timestamp))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3, verbose=True)
