@@ -3,6 +3,8 @@ from pathlib import Path
 import json
 import re
 import random
+import argparse
+import os
 
 import joblib
 from nbformat import write
@@ -25,13 +27,11 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
     random.seed(seed)
 
-# Call the function with your desired seed
-# set_seed(42)
-
 DATA_ROOT = Path("dataset")
 LABELS_LIST = Path("dataset/labels.json")
 OUTPUT = Path("weights.joblib")
 OUTPUT_LOG = "logs/training_{}.log"
+CHECKPOINT_DIR = Path("checkpoints")
 
 SEED = 67
 TRAIN_RATIO = 0.7
@@ -39,7 +39,6 @@ TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.15
 
 BATCH_SIZE = 32
-EPOCHS = 2
 
 class AddRectangles:
     def __init__(self, num_rectangles=3, max_size=50, color=(0,0,0)):
@@ -169,18 +168,30 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, val_
             running_loss = 0.0
     
     accuracy = calculate_accuracy(model, val_loader, device)
-    print(f"Epoch [{epoch_index + 1}] completed. Training Accuracy: {accuracy:.2f}%")
-    tb_writer.add_scalar('training accuracy', accuracy, epoch_index * len(train_loader)) 
+    print(f"Epoch [{epoch_index + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
+    tb_writer.add_scalar('validation accuracy', accuracy, epoch_index * len(train_loader)) 
 
     return last_loss
 
-def main():
+def main(args):
     """
     Full training pipeline.
     This script must create weights.joblib.
     """
     print(f"Using device: {device}")
     model = ModelArchitecture().to(device)
+
+    # --- RESUME FROM CHECKPOINT LOGIC ---
+    if args.resume:
+        if os.path.exists(args.resume):
+            print(f"Resuming training from checkpoint: {args.resume}")
+            if args.resume.endswith('.joblib'):
+                state_dict = joblib.load(args.resume)
+            else:
+                state_dict = torch.load(args.resume, map_location=device)
+            model.load_state_dict(state_dict)
+        else:
+            print(f"Warning: Checkpoint path '{args.resume}' does not exist. Starting from scratch.")
 
     labels_list = json.load(open(LABELS_LIST)) # str -> str
     labels_list = {int(k): v for k, v in labels_list.items()} # int -> str
@@ -196,6 +207,11 @@ def main():
                                         transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    
+    # Ensure logs and checkpoint directories exist
+    os.makedirs("logs", exist_ok=True)
+    CHECKPOINT_DIR.mkdir(exist_ok=True)
+    
     writer = SummaryWriter(OUTPUT_LOG.format(timestamp))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -207,20 +223,32 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, generator=gen)
     val_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False, generator=gen)
     
-    # Add training loop here
-    for epoch in range(EPOCHS):
-        last_loss = train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader, device)
+    # --- TRAINING LOOP WITH CHECKPOINTING ---
+    for epoch in range(args.epochs):
+        train_one_epoch(epoch, writer, model, optimizer, train_loader, val_loader, device)
+        
+        # Save intermediate checkpoint
+        checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
+        torch.save(model.state_dict(), checkpoint_path)
+        print(f"Saved epoch {epoch + 1} checkpoint to {checkpoint_path}")
 
     # evaluate the model on the test set
     accuracy = calculate_accuracy(model, val_loader, device)
-    print(f"Validation Accuracy: {accuracy:.2f}%")
+    print(f"Final Validation Accuracy: {accuracy:.2f}%")
 
     # write to file
     writer.flush()
     writer.close()
     
-    joblib.dump(model.state_dict(), "weights.joblib")
-    print("Saved trained weights.joblib")
+    # Save final joblib payload
+    joblib.dump(model.state_dict(), OUTPUT)
+    print(f"Saved trained {OUTPUT}")
+
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train model on ImageNet subset")
+    parser.add_argument('--epochs', type=int, default=2, help='Number of epochs to train the model')
+    parser.add_argument('--resume', type=str, default=None, help='Path to a checkpoint file to resume training from')
+    
+    args = parser.parse_args()
+    main(args)
