@@ -253,7 +253,14 @@ def main(args):
         accuracy = calculate_accuracy(model, val_loader, device)
         print(f"Epoch [{epoch + 1}] completed. Validation Accuracy: {accuracy:.2f}%")
         writer.add_scalar('validation accuracy', accuracy, epoch)
+        
+        # --- Check LR and Step Scheduler ---
+        current_lr = optimizer.param_groups[0]['lr']
         scheduler.step(accuracy) # This will drop the LR if accuracy stops improving
+        new_lr = optimizer.param_groups[0]['lr']
+        
+        if current_lr != new_lr:
+            print(f"Learning rate reduced from {current_lr} to {new_lr}")
 
         # Save intermediate checkpoint
         checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
