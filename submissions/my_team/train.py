@@ -19,6 +19,13 @@ from torchvision.utils import save_image
 from base_model import ImageNetSubset
 from submissions.my_team.model import ModelArchitecture
 
+PRINT_STATS = True
+try:
+    import psutil
+    import GPUtil
+except:
+    PRINT_STATS = False
+
 # Define device globally or in main() - standard practice is to resolve it dynamically
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -160,7 +167,7 @@ def calculate_accuracy(model, data_loader, device):
     accuracy = 100 * correct / total if total > 0 else 0
     return accuracy
 
-def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, device, report_interval=10):
+def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, device, report_interval=5):
     """
     Train the model for one epoch.
     """
@@ -184,6 +191,15 @@ def train_one_epoch(epoch_index, tb_writer, model, optimizer, train_loader, devi
             print(f"{timestamp}: Epoch [{epoch_index + 1}], Batch [{batch_index + 1}], Loss: {last_loss:.4f}")
             tb_writer.add_scalar('training loss', last_loss, epoch_index * len(train_loader) + batch_index)
             running_loss = 0.0
+
+            if PRINT_STATS:
+                cpu_util = psutil.cpu_percent()
+                gpus = GPUtil.getGPUs()
+                gpu_util = gpus[0].load * 100 if gpus else 0
+                
+                # --- ADD THIS: Log to TensorBoard ---
+                tb_writer.add_scalar('Hardware/CPU_Utilization', cpu_util, epoch_index * len(train_loader) + batch_index)
+                tb_writer.add_scalar('Hardware/GPU_Utilization', gpu_util, epoch_index * len(train_loader) + batch_index)
 
     return last_loss
 
@@ -240,9 +256,29 @@ def main(args):
     gen = torch.Generator(device='cpu')
     
     # load the data
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, generator=gen)
-    val_loader = DataLoader(validation_dataset, batch_size=BATCH_SIZE, shuffle=False, generator=gen)
+    # Dynamically calculate workers based on available CPU cores.
+    # We cap at 16 because anything higher on a single GPU usually causes overhead bottlenecks.
+    cpu_cores = os.cpu_count()
+    NUM_WORKERS = min(16, cpu_cores) if cpu_cores is not None else 4
+    print(f"System has {cpu_cores} CPU cores. Using {NUM_WORKERS} workers for DataLoaders.")
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=BATCH_SIZE, 
+        shuffle=True, 
+        generator=gen, 
+        num_workers=NUM_WORKERS, 
+        pin_memory=True
+    )
     
+    val_loader = DataLoader(
+        validation_dataset, 
+        batch_size=BATCH_SIZE, 
+        shuffle=False, 
+        generator=gen, 
+        num_workers=NUM_WORKERS, 
+        pin_memory=True
+    )
+
     # previw a few images
     save_preview_images(train_loader, num_images=10, output_path="preview_augmentations.png")
 
