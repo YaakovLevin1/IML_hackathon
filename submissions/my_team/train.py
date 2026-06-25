@@ -194,7 +194,8 @@ def main(args):
     """
     global BATCH_SIZE
 
-    BATCH_SIZE = args["batch-size"]
+    BATCH_SIZE = args.batch_size
+    print(f"Batch size is {BATCH_SIZE}")
 
     print(f"Using device: {device}")
     model = ModelArchitecture().to(device)
