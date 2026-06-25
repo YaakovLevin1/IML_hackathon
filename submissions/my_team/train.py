@@ -270,13 +270,6 @@ def main(args):
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=1e-4) # weight_decay is a type of regularization
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=3e-3, # The peak learning rate
-        steps_per_epoch=len(train_loader),
-        epochs=args.epochs, # Use your command line argument here!
-        pct_start=0.3
-    )
 
     # FIXED: Generator device is now dynamically assigned based on the active hardware
     gen = torch.Generator(device='cpu')
@@ -303,6 +296,14 @@ def main(args):
         generator=gen, 
         num_workers=NUM_WORKERS, 
         pin_memory=True
+    )
+
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=3e-3, # The peak learning rate
+        steps_per_epoch=len(train_loader),
+        epochs=args.epochs, # Use your command line argument here!
+        pct_start=0.3
     )
 
     # previw a few images
