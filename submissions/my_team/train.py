@@ -148,6 +148,22 @@ IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS = transforms.Compose([
     transforms.ToTensor(),
 ])
 
+IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS_FASTER_BUT_WORSE = transforms.Compose([
+    transforms.Resize(ModelArchitecture.IMAGE_SIZE),
+    transforms.CenterCrop(ModelArchitecture.IMAGE_SIZE),
+    transforms.RandomRotation(degrees=180),
+    
+    # CRITICAL: Convert to Tensor FIRST before applying math-based augmentations
+    transforms.ToTensor(), 
+    
+    # RandomErasing replaces "AddRectangles" and "AddBalls". 
+    # It randomly drops black (or colored) rectangles onto the tensor.
+    # We apply it multiple times sequentially to simulate the "num_rectangles=3" effect.
+    transforms.RandomApply([transforms.RandomErasing(p=1.0, scale=(0.02, 0.1), value=0)], p=0.5),
+    transforms.RandomApply([transforms.RandomErasing(p=1.0, scale=(0.02, 0.1), value=0)], p=0.5),
+    transforms.RandomApply([transforms.RandomErasing(p=1.0, scale=(0.02, 0.1), value=0)], p=0.3),
+])
+
 def calculate_accuracy(model, data_loader, device):
     """
     Calculate the accuracy of the model on the provided data loader.
@@ -236,10 +252,10 @@ def main(args):
 
     train_dataset = ImageNetSubset(DATA_ROOT,
                                    split="train_set/train",
-                                   transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
+                                   transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS_FASTER_BUT_WORSE)
     validation_dataset = ImageNetSubset(DATA_ROOT,
                                         split="train_set/validation",
-                                        transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS)
+                                        transform=IMAGE_TRANSFORMS_RANDOM_AUGMENTATIONS_FASTER_BUT_WORSE)
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     
