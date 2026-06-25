@@ -303,7 +303,7 @@ def main(args):
         max_lr=3e-3, # The peak learning rate
         steps_per_epoch=len(train_loader),
         epochs=args.epochs, # Use your command line argument here!
-        pct_start=0.3
+        pct_start=0.1
     )
 
     # previw a few images
@@ -325,10 +325,10 @@ def main(args):
         # if current_lr != new_lr:
         #     print(f"Learning rate reduced from {current_lr} to {new_lr}")
 
-        # # Save intermediate checkpoint
-        # checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
-        # torch.save(model.state_dict(), checkpoint_path)
-        # print(f"Saved epoch {epoch + 1} checkpoint to {checkpoint_path}")
+        # Save intermediate checkpoint
+        checkpoint_path = CHECKPOINT_DIR / f"checkpoint_epoch_{epoch + 1}.pt"
+        torch.save(model.state_dict(), checkpoint_path)
+        print(f"Saved epoch {epoch + 1} checkpoint to {checkpoint_path}")
 
     # evaluate the model on the test set
     accuracy = calculate_accuracy(model, val_loader, device)
