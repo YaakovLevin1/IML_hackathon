@@ -10,7 +10,6 @@ from torch.utils.data import DataLoader, Subset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
 from torch.cuda.amp import autocast, GradScaler
-רוצ
 from base_model import ImageNetSubset
 from model import ModelArchitecture
 
@@ -24,7 +23,7 @@ TRAIN_RATIO = 0.8
 TEST_RATIO = 0.15
 FINAL_TEST_RATIO = 0.05
 
-BATCH_SIZE = 256
+BATCH_SIZE = 64
 EPOCHS = 10  # האילוץ שלנו
 
 # תוספת AMP להאצת אימון על ה-GPU
